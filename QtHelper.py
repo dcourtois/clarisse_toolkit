@@ -33,61 +33,6 @@ import ix
 import sys
 
 
-def _get_qt():
-    """
-    This function will check loaded modules to try and guess which version was
-    loaded. In case no version or multiple ones were loaded, it will log an error
-    and return nothing.
-
-    @note
-        This function is "private" and shouldn't be used directly by anthing
-        other than the pyqt_clarisse module.
-
-    @returns
-        A pair containing the QtCore and QtGui/QtWidgets modules in that order.
-        Both modules can be None in case of errors. Note that the second module
-        is the one containing QApplication. Depending on the Qt version and binding
-        used, QApplication can be in QtGui or QtWidget.
-    """
-    # check which versions of Qt are loaded
-    pyqt4 = 1 if sys.modules.has_key("PyQt4") else 0
-    pyqt5 = 1 if sys.modules.has_key("PyQt5") else 0
-    pyside = 1 if sys.modules.has_key("PySide") else 0
-    pyside2 = 1 if sys.modules.has_key("PySide2") else 0
-
-    # get the number of loaded versions
-    loaded_qt_versions = pyqt4 + pyqt5 + pyside + pyside2
-
-    # if no version of Qt is loaded, or if multiple ones are,
-    # throw an exception
-    if loaded_qt_versions == 0:
-        raise Exception("pyqt_clarisse - no known Qt module found. Try importing PyQt4/5 or PySide/2 **before** importing pyqt_clarisse")
-    elif loaded_qt_versions > 1:
-        raise Exception("pyqt_clarisse - more than one Qt module loaded ! Load only one of PyQt4/5 or PySide/2 before importing pyqt_clarisse")
-
-    # here we can actually load the correct version of Qt and
-    # return its QtCore and QtGui parts.
-    if pyqt4 == 1:
-        ix.log_info("Python: using PyQt4 Qt bindings.")
-        from PyQt4 import QtCore, QtGui
-        return QtCore, QtGui
-    elif pyqt5 == 1:
-        ix.log_info("Python: using PyQt5 Qt bindings.")
-        from PyQt5 import QtCore, QtWidgets
-        return QtCore, QtWidgets
-    elif pyside == 1:
-        ix.log_info("Python: using PySide Qt bindings.")
-        from PySide import QtCore, QtGui
-        return QtCore, QtGui
-    elif pyside2 == 1:
-        ix.log_info("Python: using PySide2 Qt bindings.")
-        from PySide2 import QtCore, QtWidgets
-        return QtCore, QtWidgets
-
-
-# load QtCore and QtGui (or QtWidgets in case Qt5 is used)
-_qt_core, _qt_gui = _get_qt()
-
 class App:
     """
     This class encapsulate a QApplication and should be used instead of QApplication.
@@ -96,8 +41,8 @@ class App:
     way (e.g. pyqt_clarisse.exec_() global function)
 
     Using this class (see the example use in the module's documentation) is highly
-    recommended as it will allow more than one script to create and concurrently run
-    Qt UIs.
+    recommended as it will correctly handle concurrently running multiple scripts
+    with Qt stuff.
     """
 
     ## The Qt application. There is only 1 instance of this, always
@@ -179,3 +124,57 @@ class App:
         # start processing events
         while App._are_windows_visible(self.top_level_widgets) is True:
             ix.application.check_for_events()
+
+
+def _get_qt():
+    """
+    This function will check loaded modules to try and guess which version was
+    loaded. In case no version or multiple ones were loaded, it will log an error
+    and return nothing.
+
+    @note
+        This function is "private" and shouldn't be used directly by anthing
+        other than this module.
+
+    @returns
+        A pair containing the QtCore and QtGui/QtWidgets modules in that order.
+        Both modules can be None in case of errors. Note that the second module
+        is the one containing QApplication. Depending on the Qt version and binding
+        used, QApplication can be in QtGui or QtWidget.
+    """
+    # check which versions of Qt are loaded
+    pyqt4 = 1 if "PyQt4" in sys.modules else 0
+    pyqt5 = 1 if "PyQt5" in sys.modules else 0
+    pyside = 1 if "PySide" in sys.modules else 0
+    pyside2 = 1 if "PySide2" in sys.modules else 0
+
+    # get the number of loaded versions
+    loaded_qt_versions = pyqt4 + pyqt5 + pyside + pyside2
+
+    # if no version of Qt is loaded, or if multiple ones are, throw an exception
+    if loaded_qt_versions == 0:
+        raise Exception("QtHelper - no known Qt module found. Try importing PyQt4/5 or PySide/2 **before** importing QtHelper")
+    elif loaded_qt_versions > 1:
+        raise Exception("QtHelper - more than one Qt module loaded! Load **only** one of PyQt4/5 or PySide/2 before importing QtHelper")
+
+    # here we can actually load the correct version of Qt and return its QtCore and QtGui parts.
+    if pyqt4 == 1:
+        ix.log_info("Python: using PyQt4 Qt bindings.")
+        from PyQt4 import QtCore, QtGui
+        return QtCore, QtGui
+    elif pyqt5 == 1:
+        ix.log_info("Python: using PyQt5 Qt bindings.")
+        from PyQt5 import QtCore, QtWidgets
+        return QtCore, QtWidgets
+    elif pyside == 1:
+        ix.log_info("Python: using PySide Qt bindings.")
+        from PySide import QtCore, QtGui
+        return QtCore, QtGui
+    elif pyside2 == 1:
+        ix.log_info("Python: using PySide2 Qt bindings.")
+        from PySide2 import QtCore, QtWidgets
+        return QtCore, QtWidgets
+
+
+# load QtCore and QtGui (or QtWidgets in case Qt5 is used)
+_qt_core, _qt_gui = _get_qt()
