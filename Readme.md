@@ -5,14 +5,27 @@ This repository is a collection of some useful (hopefully) Python scripts to use
 Following is a few paragraphs giving a bit more details on how to use the [Clarissde SDK documentation](https://clarissewiki.com/olympus/sdk/index.html)
 and understand a few key things that can help developing Python scripts for Clarisse.
 
-Disclaimer: the following part is not meant to be a startup guide to Python scripting. You should at least be familiar with Python
-scripting, and ideally you should have already played a bit with Python in Clarisse. This guide is something meant to help you navigate
-the documentation and understand the errors, and how to convert C++ stuff to Python.
+Contributing
+============
+
+This repository is a community based effort. I'm not paid to maintain this. It's just there because I thought it might have some use
+to others. A few rules if you want to contribute:
+
+1. When creating issue, be precise. Issues like "stuff doesn't work, fix it" will be closed without me taking the time to even try to
+understand your problem. If you don't take the time to at least precisely explain your problem, create some repro, etc. don't expect
+me to take mine to try to decipher your issue.
+
+2. Pull requests will be accepted provided they are carefully crafted: the code should follow the convention of the existing stuff,
+it should be clear and documented, etc.
 
 Clarisse Python API
 ===================
 
-The first thing to know is that the Python API is automatically generated from our C++ SDK. As such, some errors and some types might
+Disclaimer: the following parts are not meant to be a startup guide to Python scripting. You should at least be familiar with Python
+scripting, and ideally you should have already played a bit with Python in Clarisse. This guide is something meant to help you navigate
+the documentation and understand the errors, and how to convert C++ stuff to Python.
+
+The first thing to know is that the Python API is automatically generated from the C++ SDK. As such, some errors and some types might
 be a bit confusing for people only used to native Python. We'll see how types are "translated" between both languages, then we'll see
 how to read the SDK documentation (also generated from C++) and finally how to decode Python errors.
 
@@ -55,7 +68,7 @@ etc.
 Reading types
 =============
 
-In Clarisse, when you print most of our objects, what's printed is the type of the object. For instance:
+In Clarisse, when you print most of the objects, what's printed is the type of the object. For instance:
 ```python
 print(ix.application)
 
@@ -75,7 +88,7 @@ print(string)
 # foo
 ```
 
-You can still use the `type` Python function to get the type of both kind of objects:
+For those type of objects, you can use the native `type` Python function (which also work with the previous example)
 ```python
 print(type(ix.application), type(ix.api.CoreString("foo")))
 
@@ -83,7 +96,7 @@ print(type(ix.application), type(ix.api.CoreString("foo")))
 # (<class 'gui.ClarisseApp'>, <class 'base.CoreString'>)
 ```
 
-This is a lot simpler. You only have the type, and it's always in the form `<module_name>.<class_name>`.
+You only get the type, and it's always in the form `<module_name>.<class_name>`.
 
 Using the SDK documentation
 ===========================
@@ -98,9 +111,10 @@ you'll end up here: https://clarissewiki.com/olympus/sdk/class_clarisse_app.html
 This is the documentation page for the class `ClarisseApp`. In contains everything that is usable for this class. The first part is the inheritance
 diagram of the class: `ClarisseApp` inherit from `GuiApp` (meaning it can do what `GuiApp` can) which inherits from `AppObject`, etc.
 
-After that are the methods of `ClarisseApp`. And after the list of methods, there is a few lines looking like `Public Member Functions inherited
+After that are the methods of `ClarisseApp`. And after the list of methods, there are a few lines looking like `Public Member Functions inherited
 from ...`. When you click on those lines, you will see the methods inherited from base classes. For instance if you click on the member functions
-inherited from `AppBase` and look at the end, you'll see a `get_version` method. And surely enough:
+inherited from `AppBase` and look at the end, you'll see a `get_version` method. This means that a `ClarisseApp` object can call this `get_version`
+method:
 ```python
 print(ix.application.get_version())
 
@@ -114,14 +128,25 @@ virtual CoreArray< CoreString > get_recent_files (const CoreString &type) const 
 virtual void                    add_recent_file (const CoreString &path, const CoreString &type)=0
 ```
 
-First thing is to ignore stuff that are specific to C++: `virtual`, `const`, `&`. Those are qualifiers that have real equivalent in Python, so
+First thing is to ignore stuff that are specific to C++: `virtual`, `const`, `&`. Those are qualifiers that do not have real equivalent in Python, so
 just ignore them. In the same manner, the `=0` at the end can be ignored. This will leave you with:
 ```cpp
 CoreArray< CoreString > get_recent_files (CoreString type)
 void                    add_recent_file (CoreString path, CoreString type)
 ```
 
-Now this looks more like a function. The main difference compared to Python is that you have the returned type before the function name (`void`
+This looks more like a function. The main difference compared to Python is that you have the returned type before the function name (`void`
 means the function returns nothing) and each function argument has its type before its name. So for instance,
 `CoreArray< CoreString > get_recent_files (CoreString type)` is a function named `get_recent_files` which takes a string as its argument, and will return
 an array of strings.
+
+Now these methods have no documentation, so you're left to guessing what the arguments and return values do. Some other methods are documented (for
+instance the documentation for `GuiApp::open_file`: https://clarissewiki.com/olympus/sdk/class_gui_app.html#ac710a660a8bee11df8edafdbecbecf6c)
+When a method is not documented, usually the names of the arguments kinda give a hint as to what they are, but in case it doesn't (which is the
+case for the `get_recent_files`) you can still try to find some info.
+
+In this example, you can check in the Clarisse installation directory: the menus and shelves are Python scripts. And if you search for `get_recent_file`
+you'll find a hit in `menus/main_menu/file/_show.py`, where there are 2 calls to this method, one for the recent projects, one for the recent references,
+and so judging from those 2 calls, `type` is either `project` to get the recent project files, or `reference` to get the recent referenced files.
+
+This was just an example of how to navigate the documentation. Hopefully the documentation improves overtime.
