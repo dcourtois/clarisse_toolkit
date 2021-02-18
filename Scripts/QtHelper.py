@@ -9,9 +9,6 @@ from PySide2 import QtCore, QtWidgets
 # import this helper
 import QtHelper
 
-# create the Qt app
-app = QtHelper.App()
-
 # from here, you can create your UI like usual
 widget = QtWidgets.QWidget()
 
@@ -25,119 +22,62 @@ widget.setWindowTitle("PyQt5 Example A")
 # show the top level widget
 widget.show()
 
-# and execute. This call will only return once the top level widget is closed.
-app.exec_(widget)
+# and execute. This call will only return once `widget` is closed.
+app.run(widget)
 ```
 """
 import ix
+
+
+def run(widgets = None):
+    """
+    Start the Qt "app". This will interface a Qt event loop with Clarisse's own event loop so that both can
+    coexist without blocking one another. This call be be blocking or not, depending on the `widgets` paramter.
+
+    @param widgets
+        This can be None, a single widget or a list of widgets. If not None, the call will not return unless all
+        the widgets are closed. If you omit this parameter, the call returns immediately, and it's your responsability
+        to make sure your UI stays alive.
+    """
+
+    # install our event loop in Clarisse, if it's not already
+    if not hasattr(ix, "_qt_helper_event_loop"):
+        ix._qt_helper_event_loop = QtLoop()
+
+    # if widgets is None, return immediately
+    if widgets is None:
+        return
+
+    # make sure widgets is a list
+    if not isinstance(widgets, list):
+        widgets = [ widgets ]
+
+    # wait until all widgets are closed
+    while any(w.isVisible() for w in widgets):
+        # process Clarisse loop
+        ix.application.check_for_events()
+
+
+#######################################################################################################################
+#
+# The following is meant to be "private", e.g. it's not meant to be used by scripts that import this file as a module.
+#
+#######################################################################################################################
+
+
 import sys
-
-
-class App:
-    """
-    This class encapsulate a QApplication and should be used instead of QApplication.
-    It will allow creating Qt application without freezing Clarisse's UI.
-    Note that this class should not be used if some other scripts are using the old
-    way (e.g. pyqt_clarisse.exec_() global function)
-
-    Using this class (see the example use in the module's documentation) is highly
-    recommended as it will correctly handle concurrently running multiple scripts
-    with Qt stuff.
-    """
-
-    ## The Qt application. There is only 1 instance of this, always
-    qt_app = None
-
-    ## Global event loop that we're using to interface with Clarisse's
-    event_loop = None
-
-    @staticmethod
-    def _are_windows_visible(widgets = None):
-        """
-        This static method will check if there are still some visible widgets. If no argument
-        is passed, it'll check all the top level widgets (See QApplication.topLevelWidgets)
-        otherwise the passed argument should be a list of widgets to check.
-        Returns True if at list one widget is still visible.
-        """
-        if widgets is None:
-            widgets = QApplication.topLevelWidgets()
-        return any(w.isVisible() for w in widgets)
-
-    @staticmethod
-    def _process_events(unused = None):
-        """
-        This is a callback that will be called from the main Clarisse event loop. It's used
-        to correctly mix both Qt and Clarisse event loops.
-        """
-        if App._are_windows_visible() is True:
-            # call Qt main loop
-            App.event_loop.processEvents()
-            # flush stacked events
-            App.qt_app.sendPostedEvents(None, 0)
-            # add ourself again to Clarisse's main event loop
-            ix.application.add_to_event_loop_single(App._process_events)
-        else:
-            # quit and destroy the global app
-            ix.log_info("Stoppig global Qt app")
-            App.qt_app.quit()
-            App.qt_app = None
-
-    def __init__(self):
-        """
-        Initialization method.
-        """
-        if App.qt_app is None:
-            # create (or get) the QApplication
-            if QApplication.instance() is None:
-                App.qt_app = QApplication([ "Clarisse" ])
-            else:
-                App.qt_app = QApplication.instance()
-
-            # create the event loop
-            App.event_loop = QEventLoop()
-
-            # start the event loop
-            ix.application.add_to_event_loop_single(App._process_events)
-
-        # the top level widgets handled by this app
-        self.top_level_widgets = []
-
-    def exec_(self, widgets):
-        """
-        exec_ overload. Once the application has been created, and all the UI created,
-        call this method. The argument passed can be either None, a signel widget or
-        a list of widgets.
-        When None is passed, the exec_ method will not return until there is no longer
-        any visible top level Qt widget. If you do that, your script will not return
-        if another script is running with a Qt widget.
-        When either a single widget or of list of them is passed, the exec_ method will
-        not return until said widget(s) is(are) no longer visible.
-        """
-        if widgets is not None:
-            if isinstance(widgets, list):
-                self.top_level_widgets = widgets
-            else:
-                self.top_level_widgets = [ widgets ]
-        else:
-            self.top_level_widgets = None
-
-        # start processing events
-        while App._are_windows_visible(self.top_level_widgets) is True:
-            ix.application.check_for_events()
 
 
 def _get_qt():
     """
-    This function will check loaded modules to try and guess which version was
-    loaded. In case no version or multiple ones were loaded, it will log an error
-    and return nothing.
+    This function will check loaded modules to try and guess which version was loaded. In case no version or
+    multiple ones were loaded, it will log an error and return nothing.
 
     @note
-        This function is "private" and shouldn't be used directly by anthing
-        other than this module.
+        This function is "private" and shouldn't be used directly by anthing other than this module.
 
     @returns
-        A pair containing the QApplication and QEventLoop classes.
+        The QApplication and QEventLoop classes as a pair
     """
     # check which versions of Qt are loaded
     pyqt4 = 1 if "PyQt4" in sys.modules else 0
@@ -175,3 +115,45 @@ def _get_qt():
 
 # load QApplication and QEventLoop
 QApplication, QEventLoop = _get_qt()
+
+
+# get or create the global QApplication instance
+qt_app = None
+if not QApplication.instance():
+    qt_app = QApplication([ "Clarisse" ])
+else:
+    qt_app = QApplication.instance()
+
+# make sure it was successfully created
+assert qt_app is not None, "Failed creating a QApplication instance."
+
+
+class QtLoop:
+    """
+    This class is used to interface Qt and Clarisse event loops. What it does is that it installs a callback in the
+    Clarisse's main loop. When this callback is executed, it will process the Qt events, and install itself again.
+
+    @note
+        This class should not be used outside of this module. It's only meant to be instanciated once.
+    """
+
+    def __init__(self):
+        """
+        Initialization method. This will store the app and install this instance in the Clarisse's event loop.
+        """
+        # create a dedicated loop
+        self.event_loop = QEventLoop()
+        # install an event callback that will be processed on the main loop
+        ix.application.add_to_event_loop_single(self.process_events)
+
+    def process_events(self):
+        """
+        This is called from CLarisse's main loop. It will then process Qt events, and install this callback in Clarisse
+        event loop again.
+        """
+        # process Qt's events
+        self.event_loop.processEvents()
+        # flush Qt's stacked events
+        qt_app.sendPostedEvents(None, 0)
+        # add the callback to Clarisse main loop
+        ix.application.add_to_event_loop_single(self.process_events)
