@@ -2,6 +2,9 @@
 This example script is the most basic Qt integration script. It uses our QtHelper script and
 creates a small window with a push button. The script does not return until the window is
 closed.
+
+Instructions:
+- replace <path_to_repo> by the path to this repository.
 '''
 
 # import the Qt bindings first. You can import PySide, PySide2, PyQt4 or PyQt5
@@ -9,7 +12,7 @@ from PySide2 import QtCore, QtWidgets
 
 # import our QtHelper (replace <path_to> by what's needed)
 import sys
-sys.path.append("<path_to>/clarisse_toolkit/Scripts")
+sys.path.append("<path_to_repo>/Scripts")
 import QtHelper
 
 # example callback for a push button

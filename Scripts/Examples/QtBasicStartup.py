@@ -1,7 +1,10 @@
 '''
 This example is almost the same as QtBasic.py. The only difference is that it's not blocking,
 meaning it can be run through a startup script.
-Usage: clarisse -startup_script "<path_to>/QtBasicStartup.py"
+
+Instructions:
+- replace <path_to_repo> by the path to this repository.
+- run from the command line: clarisse -startup_script "<path_to_repo>/Scripts/Examples/QtBasicStartup.py"
 '''
 
 # import the Qt bindings first. You can import PySide, PySide2, PyQt4 or PyQt5
@@ -9,7 +12,7 @@ from PySide2 import QtCore, QtWidgets
 
 # import our QtHelper (replace <path_to> by what's needed)
 import sys
-sys.path.append("<path_to>/clarisse_toolkit/Scripts")
+sys.path.append("<path_to_repo>/Scripts")
 import QtHelper
 
 # example callback for a push button
