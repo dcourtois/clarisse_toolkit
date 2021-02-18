@@ -60,11 +60,11 @@ class App:
         Returns True if at list one widget is still visible.
         """
         if widgets is None:
-            widgets = _qt_gui.QApplication.topLevelWidgets()
+            widgets = QApplication.topLevelWidgets()
         return any(w.isVisible() for w in widgets)
 
     @staticmethod
-    def _process_events(unused=None):
+    def _process_events(unused = None):
         """
         This is a callback that will be called from the main Clarisse event loop. It's used
         to correctly mix both Qt and Clarisse event loops.
@@ -88,19 +88,19 @@ class App:
         """
         if App.qt_app is None:
             # create (or get) the QApplication
-            if _qt_gui.QApplication.instance() is None:
-                App.qt_app = _qt_gui.QApplication([ "Clarisse" ])
+            if QApplication.instance() is None:
+                App.qt_app = QApplication([ "Clarisse" ])
             else:
-                App.qt_app = _qt_gui.QApplication.instance()
+                App.qt_app = QApplication.instance()
 
             # create the event loop
-            App.event_loop = _qt_core.QEventLoop()
+            App.event_loop = QEventLoop()
 
             # start the event loop
             ix.application.add_to_event_loop_single(App._process_events)
 
         # the top level widgets handled by this app
-        top_level_widgets = []
+        self.top_level_widgets = []
 
     def exec_(self, widgets):
         """
@@ -137,10 +137,7 @@ def _get_qt():
         other than this module.
 
     @returns
-        A pair containing the QtCore and QtGui/QtWidgets modules in that order.
-        Both modules can be None in case of errors. Note that the second module
-        is the one containing QApplication. Depending on the Qt version and binding
-        used, QApplication can be in QtGui or QtWidget.
+        A pair containing the QApplication and QEventLoop classes.
     """
     # check which versions of Qt are loaded
     pyqt4 = 1 if "PyQt4" in sys.modules else 0
@@ -161,20 +158,20 @@ def _get_qt():
     if pyqt4 == 1:
         ix.log_info("Python: using PyQt4 Qt bindings.")
         from PyQt4 import QtCore, QtGui
-        return QtCore, QtGui
+        return QtGui.QApplication, QtCore.QEventLoop
     elif pyqt5 == 1:
         ix.log_info("Python: using PyQt5 Qt bindings.")
         from PyQt5 import QtCore, QtWidgets
-        return QtCore, QtWidgets
+        return QtWidgets.QApplication, QtCore.QEventLoop
     elif pyside == 1:
         ix.log_info("Python: using PySide Qt bindings.")
         from PySide import QtCore, QtGui
-        return QtCore, QtGui
+        return QtGui.QApplication, QtCore.QEventLoop
     elif pyside2 == 1:
         ix.log_info("Python: using PySide2 Qt bindings.")
         from PySide2 import QtCore, QtWidgets
-        return QtCore, QtWidgets
+        return QtWidgets.QApplication, QtCore.QEventLoop
 
 
-# load QtCore and QtGui (or QtWidgets in case Qt5 is used)
-_qt_core, _qt_gui = _get_qt()
+# load QApplication and QEventLoop
+QApplication, QEventLoop = _get_qt()
