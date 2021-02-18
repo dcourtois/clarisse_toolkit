@@ -19,10 +19,13 @@ import QtHelper
 def test():
     ix.log_info("Hello from Qt")
 
-# create a small window with a push button
-# note that this time we create the widget directly in the `ix` module, to make sure it stays alive
-# also note: we test if the widget already exists, because in most cases, you will want to start the app
-# on startup, and also have a shelf button to re-launch the app, in case the user closes it.
+# also note: in the most cases, you'll want to start your Qt window in the startup script, but you'll
+# also need to have a shelf to re-launch it in case the user closes the window. And if the user clicks
+# on the shelf while the Qt window is still alive, but maybe hidden behind some other OS window, you
+# want to just raise the window again.
+# This is why we're using the `ix` module to store a global instance of the Qt window. This way, this
+# script can be run without modification from both the startup script and a shelf. And the shelf will
+# just raise the window on top, or reopen the window in case it was closed.
 if not hasattr(ix, "qt_basic_startup"):
     ix.qt_basic_startup = QtWidgets.QWidget()
     textLabel = QtWidgets.QPushButton(ix.qt_basic_startup)
