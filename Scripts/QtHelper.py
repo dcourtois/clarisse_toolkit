@@ -17,7 +17,7 @@ textLabel.setText("Hello")
 textLabel.move(110, 85)
 
 widget.setGeometry(50, 50, 320, 200)
-widget.setWindowTitle("PyQt5 Example A")
+widget.setWindowTitle("PySide2 Example")
 
 # show the top level widget
 widget.show()
@@ -26,6 +26,7 @@ widget.show()
 app.run(widget)
 ```
 """
+
 import ix
 
 
@@ -58,6 +59,14 @@ def run(widgets = None):
         ix.application.check_for_events()
 
 
+def app():
+    """
+    Return the global Qt application instance.
+    """
+
+    return _app
+
+
 #######################################################################################################################
 #
 # The following is meant to be "private", e.g. it's not meant to be used by scripts that import this file as a module.
@@ -79,6 +88,7 @@ def _get_qt():
     @returns
         The QApplication and QEventLoop classes as a pair
     """
+
     # check which versions of Qt are loaded
     pyqt4 = 1 if "PyQt4" in sys.modules else 0
     pyqt5 = 1 if "PyQt5" in sys.modules else 0
@@ -118,14 +128,14 @@ QApplication, QEventLoop = _get_qt()
 
 
 # get or create the global QApplication instance
-qt_app = None
+_app = None
 if not QApplication.instance():
-    qt_app = QApplication([ "Clarisse" ])
+    _app = QApplication([ "Clarisse" ])
 else:
-    qt_app = QApplication.instance()
+    _app = QApplication.instance()
 
 # make sure it was successfully created
-assert qt_app is not None, "Failed creating a QApplication instance."
+assert _app is not None, "Failed creating a QApplication instance."
 
 
 class QtLoop:
@@ -154,6 +164,6 @@ class QtLoop:
         # process Qt's events
         self.event_loop.processEvents()
         # flush Qt's stacked events
-        qt_app.sendPostedEvents(None, 0)
+        _app.sendPostedEvents(None, 0)
         # add the callback to Clarisse main loop
         ix.application.add_to_event_loop_single(self.process_events)
