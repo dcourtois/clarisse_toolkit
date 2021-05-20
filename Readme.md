@@ -79,6 +79,10 @@ print(ix.application)
 The important part is the first: `gui.ClarisseApp`. `gui` is the module in which the type is, and `ClarisseApp` is the class name of the object.
 This kind of outputs is important because you will probably encounter them a lot in error messages when working on new scripts.
 
+Note: the part `proxy of <Swig Object of type 'ClarisseApp *' at 0x0000023B30FF7240>` can be ignored. `Swig Object` are just some internal machinery
+used to expose the C++ objects to Python. For info, when it says `of type 'ClarisseApp *'` it means that the underlying C++ type is a pointer to a class named
+`ClarisseApp`, and the last part `at 0x.....` is the memory location of that object.
+
 Some other types are printed in a friendler manner. For instance:
 ```python
 string = ix.api.CoreString("foo")
