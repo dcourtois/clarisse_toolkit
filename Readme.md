@@ -2,7 +2,7 @@ Introduction
 ============
 
 This repository is a collection of some useful (hopefully) Python scripts to use in [Clarisse](https://www.isotropix.com/)
-Following is a few paragraphs giving a bit more details on how to use the [Clarissde SDK documentation](https://clarissewiki.com/olympus/sdk/index.html)
+Following is a few paragraphs giving a bit more details on how to use the [Clarisse SDK documentation](https://clarissewiki.com/olympus/sdk/index.html)
 and understand a few key things that can help developing Python scripts for Clarisse.
 
 Contributing
