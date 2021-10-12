@@ -23,7 +23,7 @@ widget.setWindowTitle("PySide2 Example")
 widget.show()
 
 # and execute. This call will only return once `widget` is closed.
-app.run(widget)
+QtHelper.run(widget)
 ```
 """
 
@@ -33,7 +33,14 @@ import ix
 def run(widgets = None):
     """
     Start the Qt "app". This will interface a Qt event loop with Clarisse's own event loop so that both can
-    coexist without blocking one another. This call be be blocking or not, depending on the `widgets` paramter.
+    coexist without blocking one another. This call will be blocking or not, depending on the `widgets` parameter.
+
+    @note
+        Do not call this with a non-None widgets paremeter form the startup script, otherwise it will block
+        Clarisse's loading until the Qt window is closed.
+        If you want to create a Qt application and run it through a Clarisse startup script, you need to use the
+        non-blocking version of this method (e.g. call with widget as None) You can see the QtBasicStartup.py
+        example script to see how it can be done.
 
     @param widgets
         This can be None, a single widget or a list of widgets. If not None, the call will not return unless all
