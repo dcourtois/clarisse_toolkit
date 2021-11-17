@@ -48,9 +48,8 @@ def run(widgets = None):
         to make sure your UI stays alive.
     """
 
-    # install our event loop in Clarisse, if it's not already
-    if not hasattr(ix, "_qt_helper_event_loop"):
-        ix._qt_helper_event_loop = QtLoop()
+    # increment the running scripts count
+    _increment_running_scripts()
 
     # if widgets is None, return immediately
     if widgets is None:
@@ -65,12 +64,16 @@ def run(widgets = None):
         # process Clarisse loop
         ix.application.check_for_events()
 
+    # if the script was run in blocking mode, decrement the running scripts count
+    if widgets is not None:
+        _decrement_running_scripts()
+
 
 def app():
     """
     Return the global Qt application instance.
     """
-
+    global _app
     return _app
 
 
@@ -133,6 +136,26 @@ def _get_qt():
 # load QApplication and QEventLoop
 QApplication, QEventLoop = _get_qt()
 
+def _increment_running_scripts():
+    """
+    Increment the number of running scripts.
+    """
+    if not hasattr(ix, "_running_scripts"):
+        setattr(ix, "_running_scripts", 1)
+        setattr(ix, "_qt_helper_event_loop", QtLoop())
+    else:
+        ix._running_scripts += 1
+
+def _decrement_running_scripts():
+    """
+    Decrement the number of running scripts. When the count reaches 0, it will delete the Qt event loop.
+    """
+    if hasattr(ix, "_running_scripts"):
+        ix._running_scripts -= 1
+        if ix._running_scripts == 0:
+            delattr(ix, "_running_scripts")
+            delattr(ix, "_qt_helper_event_loop")
+            print("Stopped Qt event loop.")
 
 # get or create the global QApplication instance
 _app = None
@@ -171,6 +194,6 @@ class QtLoop:
         # process Qt's events
         self.event_loop.processEvents()
         # flush Qt's stacked events
-        _app.sendPostedEvents(None, 0)
+        app().sendPostedEvents(None, 0)
         # add the callback to Clarisse main loop
         ix.application.add_to_event_loop_single(self.process_events)
