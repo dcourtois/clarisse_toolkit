@@ -28,6 +28,7 @@ QtHelper.run(widget)
 """
 
 import ix
+import os
 
 
 def run(widgets = None):
@@ -75,6 +76,25 @@ def app():
     """
     global _app
     return _app
+
+
+def set_style(style):
+    """
+    Set a custom css style to the Qt application. The style supports token replacements:
+    ${TOOLKIT_DIR} : path to the clarisse_toolkit repository, provided this file was not moved around and is still located in its original repository.
+    ${CLARISSE_DIR} : path to Clarisse install directory.
+    """
+    style = style.replace("${TOOLKIT_DIR}", os.path.dirname(os.path.dirname(os.path.realpath(__file__))).replace("\\", "/"))
+    style = style.replace("${CLARISSE_DIR}", ix.application.get_factory().get_vars().get("CLARISSE_BIN_DIR").get_string())
+    app().setStyleSheet(style)
+
+
+def set_stylesheet(filename):
+    """
+    Set a custom css stylesheet. This will load the content of the given file and call set_style with it.
+    """
+    with open(filename) as css:
+        set_style(css.read())
 
 
 #######################################################################################################################
