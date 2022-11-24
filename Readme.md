@@ -2,7 +2,7 @@ Introduction
 ============
 
 This repository is a collection of some useful (hopefully) Python scripts to use in [Clarisse](https://www.isotropix.com/)
-Following is a few paragraphs giving a bit more details on how to use the [Clarisse SDK documentation](https://clarissewiki.com/olympus/sdk/index.html)
+Following is a few paragraphs giving a bit more details on how to use the [Clarisse SDK documentation](https://clarissewiki.com/5.0/sdk/index.html)
 and understand a few key things that can help developing Python scripts for Clarisse.
 
 Contributing
@@ -89,10 +89,10 @@ Using the SDK documentation
 
 So, now you want to know what you can do with your object `ix.application`. You now know its type `ClarisseApp`, so you can go the documentation
 and click on the `Classes` tab which contains the list of all the SDK classes (most of them are exposed in Python)
-https://clarissewiki.com/olympus/sdk/annotated.html
+https://clarissewiki.com/5.0/sdk/annotated.html
 
 In this page, you can either use the search bar on the upper right corner, or manually search for the class you're interested in. In our case,
-you'll end up here: https://clarissewiki.com/olympus/sdk/class_clarisse_app.html
+you'll end up here: https://clarissewiki.com/5.0/sdk/class_clarisse_app.html
 
 This is the documentation page for the class `ClarisseApp`. In contains everything that is usable for this class. The first part is the inheritance
 diagram of the class: `ClarisseApp` inherit from `GuiApp` (meaning it can do what `GuiApp` can) which inherits from `AppObject`, etc.
@@ -127,7 +127,7 @@ means the function returns nothing) and each function argument has its type befo
 an array of strings.
 
 Now these methods have no documentation, so you're left to guessing what the arguments and return values do. Some other methods are documented (for
-instance the documentation for `GuiApp::open_file`: https://clarissewiki.com/olympus/sdk/class_gui_app.html#ac710a660a8bee11df8edafdbecbecf6c)
+instance the documentation for `GuiApp::open_file`: https://clarissewiki.com/5.0/sdk/class_gui_app.html#ac710a660a8bee11df8edafdbecbecf6c)
 When a method is not documented, usually the names of the arguments kinda give a hint as to what they are, but in case it doesn't (which is the
 case for the `get_recent_files`) you can still try to find some info.
 
