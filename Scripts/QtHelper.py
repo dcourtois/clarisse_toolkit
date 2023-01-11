@@ -37,7 +37,7 @@ def run(widgets = None):
     coexist without blocking one another. This call will be blocking or not, depending on the `widgets` parameter.
 
     @note
-        Do not call this with a non-None widgets paremeter form the startup script, otherwise it will block
+        Do not call this with a non-None widgets parameter from the startup script, otherwise it will block
         Clarisse's loading until the Qt window is closed.
         If you want to create a Qt application and run it through a Clarisse startup script, you need to use the
         non-blocking version of this method (e.g. call with widget as None) You can see the QtBasicStartup.py
@@ -180,7 +180,9 @@ def _decrement_running_scripts():
 # get or create the global QApplication instance
 _app = None
 if not QApplication.instance():
-    _app = QApplication([ "Clarisse" ])
+    # NOTE: tell Windows platform plugin to leave DPI settings alone, otherwise if we have scaling enabled
+    # in Windows' settings, Qt will overwrite them, and Clarisse will be resized. See https://doc.qt.io/qt-5/highdpi.html
+    _app = QApplication([ "Clarisse", "-platform", "windows:dpiawareness=0" ])
 else:
     _app = QApplication.instance()
 
