@@ -1,31 +1,16 @@
+import argparse
 import os
+import re
 import sys
-
-# Path to Clarisse
-CLARISSE_DIR = "C:/Program Files/Isotropix/Clarisse 5.0 SP1/Clarisse"
-# CLARISSE_DIR = "C:/Program Files/Isotropix/Clarisse iFX 4.5/Clarisse"
 
 # Main Python version
 PYTHON_VERSION = int(sys.version[0])
 
-# some other Clarisse paths, derived from the previous one.
-CLARISSE_MODULE_DIR = "{}/module".format(CLARISSE_DIR)
-CLARISSE_PYTHON_DIR = "{}/python{}".format(CLARISSE_DIR, PYTHON_VERSION)
-
 # indentation used for the output completion file
 INDENTATION = "  "
 
-# make Clarisse's modules findable
-os.environ["PATH"] += os.pathsep + CLARISSE_DIR
-sys.path.append(CLARISSE_PYTHON_DIR)
-
-# import things needed for reflection
-import inspect
-if PYTHON_VERSION == 2:
-    import funcsigs
-
-# import our helpers (allow to use `ix.` stuff like if you were inside the script editor in Clarisse)
-from ix_helper import *
+# Regex used to identify classes
+CLASS = re.compile(r"^<([^; ]+).*>$")
 
 
 def write(file, indentation, line):
@@ -75,11 +60,6 @@ IGNORED = [
     "ref",
     "sys",
     "weakref",
-    # our binding modules (all their stuff is imported inside ix.api)
-    "base",
-    "framework",
-    "gui",
-    "helpers",
     # some additional stuff that screw up the generated file
     "cvar",
     # some crappy static members that shouldn't be exposed anyway -_-
@@ -127,9 +107,6 @@ def parse(file, indentation, module, parent):
                 write(file, indentation, "selection = ApplicationSelection()")
                 continue
 
-        if member[0] == "PARSER_SERIAL_VERSION_TOKEN":
-            foo = 0
-
         # functions
         if inspect.isfunction(member[1]) or inspect.ismethod(member[1]) or inspect.isbuiltin(member[1]):
             write_function(file, indentation, member[0], member[1])
@@ -150,7 +127,13 @@ def parse(file, indentation, module, parent):
             elif is_string(type_str):
                 write(file, indentation, "{} = \"{}\"".format(member[0], str(member[1])))
             else:
-                write(file, indentation, "{} = {}".format(member[0], str(member[1])))
+                match = CLASS.match(str(member[1]))
+                member_type = "{}()".format(match[1]) if match else member[1]
+                if match and member_type.startswith("framework."):
+                    # TODO: can't do that for some reasons
+                    # member_type = "ix.api.{}".format(member_type)
+                    continue
+                write(file, indentation, "{} = {}".format(member[0], str(member_type)))
 
     # public write instance members
     # Note: to be able to handle this, we would need to create an instance of the class (type is `parent`) and set assign
@@ -168,9 +151,38 @@ def parse(file, indentation, module, parent):
     #     for variable in variables:
     #         write(file, indentation + 1, "self.{} = {}".format(variable, get_attribute(obj, variable)))
 
-
 if __name__ == "__main__":
-    with open("ix.py", "w") as file:
-        write(file, 0, "class ix:")
-        parse(file, 1, ix, "ix")
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="\n".join([
+            "Command line tool used to extract the 'ix' Python module from Clarisse's scripting, and export it in",
+            "a convenient 'ix.py', so that you can then configure your Python IDE to benefit from",
+            "autocompletion.",
+        ]))
+
+    parser.add_argument("--clarisse_bin_dir", required=True, type=str, help="Full path to where Clarisse executable is installed.")
+    parser.add_argument("--output_dir", required=True, type=str, help="Full path to the directory in which the 'ix.py' file will be generated. The directory must exist and be writable.")
+    parser.add_argument("--python_major_version", type=int, default=PYTHON_VERSION, help="Select which major Python version you want to generate the 'ix.py' of. Default is %(default)s")
+
+    options = parser.parse_args(sys.argv[1:])
+
+    # compute the python directory
+    clarisse_python_dir = "{}/python{}".format(options.clarisse_bin_dir, options.python_major_version)
+    if not os.path.exists(clarisse_python_dir):
+        print("Clarisse's Python module directory not found: '{}'".format(clarisse_python_dir))
+        print("Please ensure that Clarisse bin dir option is correct, and Clarisse version is at least 5.0.")
+        sys.exit(1)
+
+    # make Clarisse's modules findable
+    os.environ["PATH"] += os.pathsep + options.clarisse_bin_dir
+    sys.path.append(clarisse_python_dir)
+
+    # import things needed for reflection
+    import inspect
+    if PYTHON_VERSION == 2:
+        import funcsigs
+
+    # import our helpers (allow to use `ix.` stuff like if you were inside the script editor in Clarisse)
+    from ix_helper import *
+
+    with open("{}/ix.py".format(options.output_dir), "w") as file:
+        parse(file, 0, ix, "ix")
         file.close()
