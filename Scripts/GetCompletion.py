@@ -9,8 +9,13 @@ PYTHON_VERSION = int(sys.version[0])
 # indentation used for the output completion file
 INDENTATION = "  "
 
-# Regex used to identify classes
-CLASS = re.compile(r"^<([^; ]+).*>$")
+# A few regexes used later
+CLASS          = re.compile(r"^<([^; ]+).*>$")
+PARAM_TYPE  = re.compile(r"[\w_][\w\d_]*: ('([^']+)')")
+RETURN_TYPE = re.compile(r" -> ('(.+)')")
+
+# Global lookup tables of C++ types (as used by Swig Python annotations) to Python types.
+TYPES = dict()
 
 
 def write(file, indentation, line):
@@ -25,7 +30,7 @@ def signature(function):
     """Returns the signature of a function as a string"""
     if inspect.isbuiltin(function):
         return "(*args)"
-    return inspect.signature(function) if PYTHON_VERSION == 3 else funcsigs.signature(function)
+    return str(inspect.signature(function) if PYTHON_VERSION == 3 else funcsigs.signature(function))
 
 
 def write_doc(file, indentation, object):
@@ -35,14 +40,15 @@ def write_doc(file, indentation, object):
         string = inspect.getcomments(object)
     if string is not None:
         write(file, indentation, "\"\"\"")
-        for line in string.split("\n"):
-            write(file, indentation, line.strip("# "))
+        lines = string.split("\n")
+        for line in lines:
+            write(file, indentation, line.strip("# ").strip())
         write(file, indentation, "\"\"\"")
 
 
 def write_function(file, indentation, name, func):
     """Writes a function + its doc (if any)"""
-    write(file, indentation, "def {}{}:".format(name, str(signature(func))))
+    write(file, indentation, "def {}{}:".format(name, signature(func)))
     write_doc(file, indentation + 1, func)
     write(file, indentation + 1, "pass")
 
@@ -50,6 +56,18 @@ def write_function(file, indentation, name, func):
 def is_string(type_str):
     """Small helper that checks if a type string is the type of a string"""
     return type_str == "<class 'base.CoreString'>" or type_str == "<class 'base.CoreBasicString'>" or type_str == "<class 'str'>"
+
+
+def add_type(cpp_type, python_type):
+    """Update the global TYPES dictionary with all variants of a C++ type and the corresponding Python type."""
+    global TYPES
+    TYPES[cpp_type] = python_type
+    TYPES["{} const".format(cpp_type)] = python_type
+    TYPES["{} *".format(cpp_type)] = python_type
+    TYPES["{} &".format(cpp_type)] = python_type
+    TYPES["{} const *".format(cpp_type)] = python_type
+    TYPES["{} const &".format(cpp_type)] = python_type
+    TYPES["{} *const &".format(cpp_type)] = python_type
 
 
 # a few things that we don't want to process
@@ -65,19 +83,26 @@ IGNORED = [
     # some crappy static members that shouldn't be exposed anyway -_-
     "s_has_custom_data_in_associate_window",
     "s_empty_box",
+    "s_empty_handle"
 ]
 
 # a few suffixes to ignore
 IGNORED_SUFFIXES = [
     "____class_destructor__",
     "_class_info",
-    "_swigregister",
+    "_swigregister"
 ]
 
 # used by parse to avoid processing the same modules multiple times
 processed = []
 
 def parse(file, indentation, module, parent):
+    """
+    file: ix.py file handle.
+    indentation: current level of indentation
+    module: the Python module we're currently parsing
+    parent: name of the parent module as a string
+    """
     members = inspect.getmembers(module)
     variables = []
     for member in members:
@@ -99,7 +124,7 @@ def parse(file, indentation, module, parent):
             continue
 
         # special cases
-        if parent == "ix":
+        if parent == "":
             if member[0] == "application":
                 write(file, indentation, "application = api.ClarisseApp()")
                 continue
@@ -111,13 +136,15 @@ def parse(file, indentation, module, parent):
         if inspect.isfunction(member[1]) or inspect.ismethod(member[1]) or inspect.isbuiltin(member[1]):
             write_function(file, indentation, member[0], member[1])
 
-        # classes
+        # classes and modules
         elif inspect.ismodule(member[1]) or inspect.isclass(member[1]):
             if member[0] not in processed:
                 processed.append(member[0])
+                python_type = "{}.{}".format(parent, member[0]) if parent != "" else member[0]
                 write(file, indentation, "class {}:".format(member[0]))
-                parse(file, indentation + 1, member[1], member[0])
+                parse(file, indentation + 1, member[1], python_type)
                 write(file, indentation + 1, "pass")
+                add_type(member[0], python_type)
 
         # members
         else:
@@ -129,10 +156,6 @@ def parse(file, indentation, module, parent):
             else:
                 match = CLASS.match(str(member[1]))
                 member_type = "{}()".format(match[1]) if match else member[1]
-                if match and member_type.startswith("framework."):
-                    # TODO: can't do that for some reasons
-                    # member_type = "ix.api.{}".format(member_type)
-                    continue
                 write(file, indentation, "{} = {}".format(member[0], str(member_type)))
 
     # public write instance members
@@ -151,12 +174,54 @@ def parse(file, indentation, module, parent):
     #     for variable in variables:
     #         write(file, indentation + 1, "self.{} = {}".format(variable, get_attribute(obj, variable)))
 
+
+def process_annotations(source_file, destination_file):
+    # add builtin C++ types
+    add_type("unsigned long long", "int")
+    add_type("unsigned long",      "int")
+    add_type("unsigned int",       "int")
+    add_type("unsigned short",     "int")
+    add_type("unsigned char",      "int")
+    add_type("long long",          "int")
+    add_type("long",               "int")
+    add_type("int",                "int")
+    add_type("short",              "int")
+    add_type("char",               "int")
+    add_type("size_t",             "int")
+    add_type("float",              "float")
+    add_type("double",             "float")
+    add_type("bool",               "bool")
+    add_type("void",               "None")
+
+    # local helper to match either a param annotation or if not found, the return annotation
+    def search(line, start=0):
+        res = PARAM_TYPE.search(line, start)
+        if not res:
+            res = RETURN_TYPE.search(line, start)
+        return res
+
+    # and process
+    for line in source_file.readlines():
+        if line.find("def ") != -1:
+            annotation = search(line)
+            while annotation:
+                cpp_type = annotation[2]
+                python_type = TYPES.get(cpp_type)
+                new_start = annotation.end()
+                if python_type is not None:
+                    to_replace = annotation[1]
+                    new_start += len(python_type) - len(to_replace)
+                    line = line.replace(to_replace, python_type)
+                annotation = search(line, new_start)
+        destination_file.write(line)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="\n".join([
-            "Command line tool used to extract the 'ix' Python module from Clarisse's scripting, and export it in",
-            "a convenient 'ix.py', so that you can then configure your Python IDE to benefit from",
-            "autocompletion.",
-        ]))
+        "Command line tool used to extract the 'ix' Python module from Clarisse's scripting, and export it in",
+        "a convenient 'ix.py', so that you can then configure your Python IDE to benefit from",
+        "autocompletion.",
+    ]))
 
     parser.add_argument("--clarisse_bin_dir", required=True, type=str, help="Full path to where Clarisse executable is installed.")
     parser.add_argument("--output_dir", required=True, type=str, help="Full path to the directory in which the 'ix.py' file will be generated. The directory must exist and be writable.")
@@ -183,6 +248,22 @@ if __name__ == "__main__":
     # import our helpers (allow to use `ix.` stuff like if you were inside the script editor in Clarisse)
     from ix_helper import *
 
-    with open("{}/ix.py".format(options.output_dir), "w") as file:
-        parse(file, 0, ix, "ix")
-        file.close()
+    has_annotations      = PYTHON_VERSION == 3 and options.python_major_version == 3
+    module_filename      = "{}/ix.py".format(options.output_dir)
+    temp_module_filename = "{}.temp".format(module_filename)
+
+    # generate the fake "module"
+    file = open(module_filename if has_annotations is False else temp_module_filename, "w")
+    print("Generating ix.py...")
+    parse(file, 0, ix, "")
+    file.close()
+
+    # process annotations
+    if has_annotations:
+        print("Converting type annotations...")
+        source = open(temp_module_filename, "r")
+        destination = open(module_filename, "w")
+        process_annotations(source, destination)
+        source.close()
+        destination.close()
+        os.remove(temp_module_filename)
